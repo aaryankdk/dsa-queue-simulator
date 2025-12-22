@@ -18,4 +18,4 @@ while True:
     road = random.choice(ROAD)
     lane = random.choices(LANES, weights=[SPAWN_RATE[lane] for lane in LANES])[0] # for-in loop to select lane based on spawn rate
     print(f"ID: {vehicle_id}, Road: {road}, Lane: {lane}")  
-    time.sleep(1) # Spawn Interval
+    time.sleep(1) # Vehicle Spawn Interval
