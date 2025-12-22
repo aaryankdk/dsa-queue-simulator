@@ -11,11 +11,15 @@ SPAWN_RATE = {
     3: 1
 }
 
+open('vehicle.data', 'w').close() # Clear previous data (if any)
+
 vehicle_id = 0
 
 while True:
     vehicle_id += 1
     road = random.choice(ROAD)
     lane = random.choices(LANES, weights=[SPAWN_RATE[lane] for lane in LANES])[0] # for-in loop to select lane based on spawn rate
-    print(f"ID: {vehicle_id}, Road: {road}, Lane: {lane}")  
+    print(f"ID: {vehicle_id}, Road: {road}, Lane: {lane}")
+    with open('vehicle.data', 'a') as f:
+        f.write(f"{vehicle_id}: {road}L{lane}\n")  
     time.sleep(1) # Vehicle Spawn Interval
