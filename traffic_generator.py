@@ -6,7 +6,7 @@ import random
 ROAD = ['A', 'B', 'C', 'D']
 LANES = [1, 2, 3]
 SPAWN_RATE = {
-    1: 1,
+    1: 0, # No vehicles in this lane
     2: 2, # Normal lane with higher spawn rate
     3: 1
 }
