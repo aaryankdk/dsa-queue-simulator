@@ -5,11 +5,17 @@ from queue import Queue
 import os
 import time
 
+
+GREEN_LIGHT = 10
+RED_LIGHT = 10
+
+
 class Vehicle:
     def __init__(self, vehicle_id, road, lane):
         self.vehicle_id = vehicle_id
         self.road = road
         self.lane = lane
+
 
 class FileReaderThread(threading.Thread): # Thread to read vehicle.data
     def __init__(self, filename, queue):
@@ -46,7 +52,6 @@ class FileReaderThread(threading.Thread): # Thread to read vehicle.data
                                 print(f"[FileReader] Vehicle Added: ID={vehicle_id}, Road={road}, Lane={lane}")
                         except(ValueError, IndexError) as e:
                             print(f"[FileReader] Error: {line}") # Error in vehicle data format
-
             except Exception as e:
                 print(f"[FileReader] Error: {e}")
             time.sleep(1)
@@ -54,10 +59,23 @@ class FileReaderThread(threading.Thread): # Thread to read vehicle.data
     def stop(self):
         self.running= False
 
-class TrafficLight:
+
+class TrafficLight: # To be implemented in TrafficSimulator class
     def __init__(self, road):
         self.road = road
         self.state = 'RED'
+        self.counter = 0
+    def update(self): # Updates each second due to time.sleep(1)
+        self.counter += 1
+        if self.state == 'GREEN' and self.counter >= GREEN_LIGHT:
+            self.state = 'RED'
+            self.counter = 0
+        elif self.state == 'RED' and self.counter >= RED_LIGHT:
+            self.state = 'GREEN'
+            self.counter = 0
+    def can_proceed(self):
+        return self.state == 'GREEN'
+
 
 class TrafficSimulator: # Main logic for traffic simulation
     def __init__(self):
@@ -86,15 +104,17 @@ class TrafficSimulator: # Main logic for traffic simulation
             total = l1 + l2 + l3
             if total > 0:
                 print(f"Road {road}: L1={l1} L2={l2} L3={l3} (Total: {total})")
-    
+
     def run(self):        
         while True:
-            time.sleep(3)  # Check every 3 seconds
+            time.sleep(1)
             self.print_queue_status()
+
 
 def main():
     simulator = TrafficSimulator()
     simulator.run()
+
 
 if __name__ == "__main__":
     main()
