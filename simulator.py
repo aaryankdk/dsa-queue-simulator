@@ -1,5 +1,5 @@
 import threading
-from custom_queue import Queue
+from custom_queue import Queue, PriorityQueue
 import os
 import time
 import random
@@ -125,16 +125,37 @@ class TrafficLight:
 
 
 class TrafficLightController:
-    def __init__(self, traffic_lights):
+    def __init__(self, traffic_lights, queue_dict):
         self.traffic_lights = traffic_lights
+        self.queue_dict = queue_dict
         self.road_order = ['A', 'B', 'C', 'D']
         self.current_index = 0
         self.green_light = self.road_order[self.current_index]
         self.traffic_lights[self.green_light].green()
         for road in ['B', 'C', 'D']:
             self.traffic_lights[road].red()
+        self.priority_mode = False
 
     def update(self):
+        al2_queue = self.queue_dict['A'][2]
+        is_priority = al2_queue.check_priority()
+        
+        if is_priority and not self.priority_mode:
+            self.priority_mode = True
+            for road in self.road_order:
+                self.traffic_lights[road].red()
+            self.traffic_lights['A'].green()
+            self.green_light = 'A'
+            print("[Priority] AL2 activated priority mode - vehicles >= 10")
+            return
+        
+        if not is_priority and self.priority_mode:
+            self.priority_mode = False
+            print("[Priority] AL2 deactivated priority mode - vehicles <= 5")
+        
+        if self.priority_mode:
+            return
+        
         current_light = self.traffic_lights[self.green_light]
         current_light.update()
         if current_light.state == 'GREEN' and current_light.counter >= GREEN_LIGHT:
@@ -481,12 +502,17 @@ class TrafficGUI:
             text = self.font.render(f"{road}: L1={l1} L2={l2} L3={l3}", True, WHITE)
             self.screen.blit(text, (10, y_offset))
             y_offset += 25
+        
+        al2_queue = self.queue_dict['A'][2]
+        if hasattr(al2_queue, 'is_priority') and al2_queue.is_priority:
+            priority_text = self.font.render("PRIORITY MODE: AL2 ACTIVE", True, RED)
+            self.screen.blit(priority_text, (WINDOW_WIDTH // 2 - 120, 60))
 
 
 class TrafficSimulator:
     def __init__(self):
         self.queue_dict = {
-            'A': {1: Queue(), 2: Queue(), 3: Queue()},
+            'A': {1: Queue(), 2: PriorityQueue(), 3: Queue()},
             'B': {1: Queue(), 2: Queue(), 3: Queue()},
             'C': {1: Queue(), 2: Queue(), 3: Queue()},
             'D': {1: Queue(), 2: Queue(), 3: Queue()}
@@ -499,7 +525,7 @@ class TrafficSimulator:
             'D': TrafficLight('D')
         }
 
-        self.light_controller = TrafficLightController(self.traffic_lights)
+        self.light_controller = TrafficLightController(self.traffic_lights, self.queue_dict)
         self.vehicle_processor = VehicleProcessorThread(self.queue_dict, self.traffic_lights)
         self.vehicle_processor.start()
         self.gui = TrafficGUI(self.queue_dict, self.traffic_lights, self.vehicle_processor)
