@@ -48,8 +48,8 @@ A multi-threaded traffic junction simulator with priority queue management and r
 
 ### Step 1: Clone or Download the Project
 ```bash
-git clone <repository-url>
-cd traffic-simulator
+git clone https://github.com/aaryankdk/dsa-queue-simulator
+cd dsa-queue-simulator
 ```
 
 ### Step 2: Install Dependencies
