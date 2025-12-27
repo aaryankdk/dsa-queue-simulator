@@ -60,21 +60,41 @@ class FileReaderThread(threading.Thread): # Thread to read vehicle.data
         self.running= False
 
 
-class TrafficLight: # To be implemented in TrafficSimulator class
+class TrafficLight:
     def __init__(self, road):
         self.road = road
         self.state = 'RED'
         self.counter = 0
+
     def update(self): # Updates each second due to time.sleep(1)
         self.counter += 1
-        if self.state == 'GREEN' and self.counter >= GREEN_LIGHT:
-            self.state = 'RED'
-            self.counter = 0
-        elif self.state == 'RED' and self.counter >= RED_LIGHT:
-            self.state = 'GREEN'
-            self.counter = 0
-    def can_proceed(self):
-        return self.state == 'GREEN'
+    
+    def green(self):
+        self.state = 'GREEN'
+        self.counter = 0
+    def red(self):
+        self.state = 'RED'
+        self.counter = 0
+
+
+class TrafficLightController:
+    def __init__(self, traffic_lights):
+        self.traffic_lights = traffic_lights
+        self.road_order = ['A', 'B', 'C', 'D']
+        self.current_index = 0
+        self.green_light = self.road_order[self.current_index]
+        self.traffic_lights[self.road_order[self.current_index]].green()
+        for road in ['B', 'C', 'D']:
+            self.traffic_lights[road].red()
+
+    def update(self):
+        current_light = self.traffic_lights[self.green_light]
+        current_light.update()
+        if current_light.state == 'GREEN' and current_light.counter >= GREEN_LIGHT:
+            current_light.red()
+            self.current_index = (self.current_index + 1) % len(self.road_order)
+            self.green_light = self.road_order[self.current_index]
+            self.traffic_lights[self.green_light].green()
 
 
 class TrafficSimulator: # Main logic for traffic simulation
@@ -93,10 +113,11 @@ class TrafficSimulator: # Main logic for traffic simulation
             'D': TrafficLight('D')
         }
 
+        self.light_controller = TrafficLightController(self.traffic_lights)
         self.file_reader = FileReaderThread('vehicle.data', self.queue)
         self.file_reader.start()
 
-    def print_queue_status(self):
+    def print_status(self):
         for road in ['A', 'B', 'C', 'D']:
             l1 = self.queue[road][1].size()
             l2 = self.queue[road][2].size()
@@ -104,11 +125,16 @@ class TrafficSimulator: # Main logic for traffic simulation
             total = l1 + l2 + l3
             if total > 0:
                 print(f"Road {road}: L1={l1} L2={l2} L3={l3} (Total: {total})")
+        for road in ['A', 'B', 'C', 'D']:
+            light = self.traffic_lights[road]
+            print(f"Traffic Light {road}: {light.state} ({light.counter}s)")
+        print("-" * 40)
 
     def run(self):        
         while True:
             time.sleep(1)
-            self.print_queue_status()
+            self.light_controller.update()
+            self.print_status()
 
 
 def main():
