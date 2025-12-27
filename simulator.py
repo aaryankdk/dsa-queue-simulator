@@ -42,6 +42,7 @@ class Vehicle:
         self.original_lane = lane
         self.exiting = False
         self.turning_left = False
+        self.turning_right = False
         self.at_intersection = False
 
 
@@ -173,7 +174,11 @@ class VehicleProcessorThread(threading.Thread):
             if light.state == 'GREEN' and not l2_queue.is_empty():
                 vehicle = l2_queue.dequeue()
                 if vehicle.x != 0 or vehicle.y != 0:
-                    next_road = self.straight[road] if random.random() < 1 else self.right_turn[road]
+                    if random.random() < 0.5:
+                        next_road = self.straight[road]
+                    else:
+                        next_road = self.right_turn[road]
+                        vehicle.turning_right = True
                     vehicle.original_road = vehicle.road
                     vehicle.original_lane = vehicle.lane
                     vehicle.road = next_road
@@ -264,6 +269,33 @@ class TrafficGUI:
                     elif vehicle.original_road == 'D':
                         vehicle.target_x = self.center_x - self.road_width // 2 + 5
                         vehicle.target_y = self.center_y - self.road_width // 2 + (1 - 1) * self.lane_width + self.lane_width // 2
+                    
+                    dx = vehicle.target_x - vehicle.x
+                    dy = vehicle.target_y - vehicle.y
+                    distance = math.sqrt(dx * dx + dy * dy)
+                    
+                    if distance < vehicle.move_speed:
+                        vehicle.x = vehicle.target_x
+                        vehicle.y = vehicle.target_y
+                        vehicle.at_intersection = True
+                    else:
+                        vehicle.x += (dx / distance) * vehicle.move_speed
+                        vehicle.y += (dy / distance) * vehicle.move_speed
+                    continue
+
+                if vehicle.turning_right and not vehicle.at_intersection:
+                    if vehicle.original_road == 'A':
+                        vehicle.target_x = self.center_x - self.road_width // 2 + (1 - 1) * self.lane_width + self.lane_width // 2
+                        vehicle.target_y = self.center_y - self.road_width // 2 + 5
+                    elif vehicle.original_road == 'C':
+                        vehicle.target_x = self.center_x - self.road_width // 2 + (3 - 1) * self.lane_width + self.lane_width // 2
+                        vehicle.target_y = self.center_y + self.road_width // 2 - 5
+                    elif vehicle.original_road == 'B':
+                        vehicle.target_x = self.center_x + self.road_width // 2 - 5
+                        vehicle.target_y = self.center_y - self.road_width // 2 + (1 - 1) * self.lane_width + self.lane_width // 2
+                    elif vehicle.original_road == 'D':
+                        vehicle.target_x = self.center_x - self.road_width // 2 + 5
+                        vehicle.target_y = self.center_y - self.road_width // 2 + (3 - 1) * self.lane_width + self.lane_width // 2
                     
                     dx = vehicle.target_x - vehicle.x
                     dy = vehicle.target_y - vehicle.y
