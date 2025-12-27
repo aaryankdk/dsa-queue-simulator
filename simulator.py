@@ -17,13 +17,14 @@ WINDOW_HEIGHT = 800
 FPS = 60
 
 # Colors
-WHITE  = (255, 255, 255)
-BLACK  = (0, 0, 0)
+BACKGROUND = (66,69,73)
+WHITE  = (230, 230, 230)
 GRAY   = (100, 100, 100)
-RED    = (255, 0, 0)
-GREEN  = (0, 255, 0)
-BLUE   = (150, 200, 255)
+RED    = (220,99,99)
+GREEN  = (99, 220, 99)
+BLUE   = (0,146,156)
 YELLOW = (255, 255, 180)
+ORANGE = (255, 165, 0)
 
 
 class Vehicle:
@@ -271,7 +272,7 @@ class TrafficGUI:
             self.vehicle_processor.moving_vehicles.remove(v)
 
     def draw(self):
-        self.screen.fill(WHITE)
+        self.screen.fill(BACKGROUND)
         self.update_moving_vehicles()
         self.draw_roads()
         self.draw_traffic_lights()
@@ -293,12 +294,12 @@ class TrafficGUI:
         for i in range(1, 3):
             x = self.center_x - self.road_width//2 + i * self.lane_width
             for y in range(0, WINDOW_HEIGHT, 20):
-                pygame.draw.line(self.screen, WHITE, (x, y), (x, y+10), 2)
+                pygame.draw.line(self.screen, YELLOW, (x, y), (x, y+10), 2)
         
         for i in range(1, 3):
             y = self.center_y - self.road_width//2 + i * self.lane_width
             for x in range(0, WINDOW_WIDTH, 20):
-                pygame.draw.line(self.screen, WHITE, (x, y), (x+10, y), 2)
+                pygame.draw.line(self.screen, YELLOW, (x, y), (x+10, y), 2)
         
         # Center junction
         pygame.draw.rect(self.screen, (150, 150, 150),
@@ -317,7 +318,7 @@ class TrafficGUI:
             light = self.traffic_lights[road]
             color = GREEN if light.state == 'GREEN' else RED
             pygame.draw.circle(self.screen, color, pos, 15)
-            pygame.draw.circle(self.screen, BLACK, pos, 15, 2)
+            pygame.draw.circle(self.screen, WHITE, pos, 15, 2)
     
     def draw_vehicles(self):
         vehicle_width = 12
@@ -339,7 +340,7 @@ class TrafficGUI:
                     queue.enqueue(v)
                 
                 for i, vehicle in enumerate(vehicles[:10]):
-                    color = BLUE if lane == 2 else (YELLOW if lane == 3 else GREEN)
+                    color = BLUE if lane == 2 else (ORANGE if lane == 3 else GREEN)
                     
                     # Update vehicle position
                     vehicle.x, vehicle.y = self.get_queue_position(road, lane, i)
@@ -353,11 +354,11 @@ class TrafficGUI:
                                          vehicle_height, vehicle_width)
                     
                     pygame.draw.rect(self.screen, color, rect)
-                    pygame.draw.rect(self.screen, BLACK, rect, 2)
+                    pygame.draw.rect(self.screen, WHITE, rect, 2)
         
         # Draw moving vehicles
         for vehicle in self.vehicle_processor.moving_vehicles:
-            color = BLUE if vehicle.original_lane == 2 else (YELLOW if vehicle.original_lane == 3 else GREEN)
+            color = BLUE if vehicle.original_lane == 2 else (ORANGE if vehicle.original_lane == 3 else GREEN)
             
             # Determine orientation based on original road
             if vehicle.original_road in ['A', 'C']:
@@ -368,7 +369,7 @@ class TrafficGUI:
                                  vehicle_height, vehicle_width)
             
             pygame.draw.rect(self.screen, color, rect)
-            pygame.draw.rect(self.screen, BLACK, rect, 2)
+            pygame.draw.rect(self.screen, WHITE, rect, 2)
     
     def draw_labels(self):
         labels = {
@@ -379,7 +380,7 @@ class TrafficGUI:
         }
         
         for road, pos in labels.items():
-            text = self.font.render(f"Road {road}", True, BLACK)
+            text = self.font.render(f"Road {road}", True, WHITE)
             text_rect = text.get_rect(center=pos)
             self.screen.blit(text, text_rect)
         
@@ -389,7 +390,7 @@ class TrafficGUI:
             l1 = self.queue_dict[road][1].size()
             l2 = self.queue_dict[road][2].size()
             l3 = self.queue_dict[road][3].size()
-            text = self.font.render(f"{road}: L1={l1} L2={l2} L3={l3}", True, BLACK)
+            text = self.font.render(f"{road}: L1={l1} L2={l2} L3={l3}", True, WHITE)
             self.screen.blit(text, (10, y_offset))
             y_offset += 25
 
