@@ -41,6 +41,8 @@ class Vehicle:
         self.original_road = road
         self.original_lane = lane
         self.exiting = False
+        self.turning_left = False
+        self.at_intersection = False
 
 
 class FileReaderThread(threading.Thread):
@@ -159,6 +161,7 @@ class VehicleProcessorThread(threading.Thread):
                     vehicle.road = next_road
                     vehicle.lane = 1
                     vehicle.is_moving = True
+                    vehicle.turning_left = True
                     self.moving_vehicles.append(vehicle)
                 else:
                     l3_queue.enqueue(vehicle)
@@ -246,6 +249,33 @@ class TrafficGUI:
                         vehicle.x -= vehicle.move_speed
                         if vehicle.x < -50:
                             exited.append(vehicle)
+                    continue
+
+                if vehicle.turning_left and not vehicle.at_intersection:
+                    if vehicle.original_road == 'A':
+                        vehicle.target_x = self.center_x - self.road_width // 2 + (3 - 1) * self.lane_width + self.lane_width // 2
+                        vehicle.target_y = self.center_y - self.road_width // 2 + 5
+                    elif vehicle.original_road == 'C':
+                        vehicle.target_x = self.center_x - self.road_width // 2 + (1 - 1) * self.lane_width + self.lane_width // 2
+                        vehicle.target_y = self.center_y + self.road_width // 2 - 5
+                    elif vehicle.original_road == 'B':
+                        vehicle.target_x = self.center_x + self.road_width // 2 - 5
+                        vehicle.target_y = self.center_y - self.road_width // 2 + (3 - 1) * self.lane_width + self.lane_width // 2
+                    elif vehicle.original_road == 'D':
+                        vehicle.target_x = self.center_x - self.road_width // 2 + 5
+                        vehicle.target_y = self.center_y - self.road_width // 2 + (1 - 1) * self.lane_width + self.lane_width // 2
+                    
+                    dx = vehicle.target_x - vehicle.x
+                    dy = vehicle.target_y - vehicle.y
+                    distance = math.sqrt(dx * dx + dy * dy)
+                    
+                    if distance < vehicle.move_speed:
+                        vehicle.x = vehicle.target_x
+                        vehicle.y = vehicle.target_y
+                        vehicle.at_intersection = True
+                    else:
+                        vehicle.x += (dx / distance) * vehicle.move_speed
+                        vehicle.y += (dy / distance) * vehicle.move_speed
                     continue
 
                 target_x, target_y = self.get_queue_position(vehicle.road, vehicle.lane, 0)
