@@ -11,12 +11,11 @@ GREEN_LIGHT = 10
 RED_LIGHT = 10
 
 
-# Pygame settings
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 800
 FPS = 60
 
-# Colors
+
 BACKGROUND = (66,69,73)
 WHITE  = (230, 230, 230)
 GRAY   = (100, 100, 100)
@@ -44,13 +43,16 @@ class Vehicle:
         self.turning_left = False
         self.turning_right = False
         self.at_intersection = False
+        self.entering = False
 
 
 class FileReaderThread(threading.Thread):
-    def __init__(self, filename, queue_dict):
+    def __init__(self, filename, queue_dict, vehicle_processor, gui):
         super().__init__()
         self.filename = "vehicle.data"
         self.queue_dict = queue_dict
+        self.vehicle_processor = vehicle_processor
+        self.gui = gui
         self.daemon = True
         self.running = True
         self.vehicle_id = 0
@@ -76,7 +78,22 @@ class FileReaderThread(threading.Thread):
                             lane = int(road_lane[2])
                             vehicle = Vehicle(vehicle_id, road, lane)
                             if road in self.queue_dict and lane in self.queue_dict[road]:
-                                self.queue_dict[road][lane].enqueue(vehicle)
+                                lane_offset = (lane - 1) * self.gui.lane_width + self.gui.lane_width // 2
+                                if road == 'A':
+                                    vehicle.x = self.gui.center_x - self.gui.road_width // 2 + lane_offset
+                                    vehicle.y = -50
+                                elif road == 'C':
+                                    vehicle.x = self.gui.center_x - self.gui.road_width // 2 + (3 - lane) * self.gui.lane_width + self.gui.lane_width // 2
+                                    vehicle.y = WINDOW_HEIGHT + 50
+                                elif road == 'B':
+                                    vehicle.x = WINDOW_WIDTH + 50
+                                    vehicle.y = self.gui.center_y - self.gui.road_width // 2 + lane_offset
+                                elif road == 'D':
+                                    vehicle.x = -50
+                                    vehicle.y = self.gui.center_y - self.gui.road_width // 2 + (3 - lane) * self.gui.lane_width + self.gui.lane_width // 2
+                                vehicle.is_moving = True
+                                vehicle.entering = True
+                                self.vehicle_processor.moving_vehicles.append(vehicle)
                                 self.vehicle_id += 1
                                 print(f"[FileReader] Vehicle Added: ID={vehicle_id}, Road={road}, Lane={lane}")
                         except (ValueError, IndexError):
@@ -155,17 +172,14 @@ class VehicleProcessorThread(threading.Thread):
             l3_queue = self.queue_dict[road][3]
             if not l3_queue.is_empty():
                 vehicle = l3_queue.dequeue()
-                if vehicle.x != 0 or vehicle.y != 0:
-                    next_road = self.left_turn[road]
-                    vehicle.original_road = vehicle.road
-                    vehicle.original_lane = vehicle.lane
-                    vehicle.road = next_road
-                    vehicle.lane = 1
-                    vehicle.is_moving = True
-                    vehicle.turning_left = True
-                    self.moving_vehicles.append(vehicle)
-                else:
-                    l3_queue.enqueue(vehicle)
+                next_road = self.left_turn[road]
+                vehicle.original_road = vehicle.road
+                vehicle.original_lane = vehicle.lane
+                vehicle.road = next_road
+                vehicle.lane = 1
+                vehicle.is_moving = True
+                vehicle.turning_left = True
+                self.moving_vehicles.append(vehicle)
 
     def process_l2_lanes(self):
         for road in ['A', 'B', 'C', 'D']:
@@ -173,20 +187,17 @@ class VehicleProcessorThread(threading.Thread):
             l2_queue = self.queue_dict[road][2]
             if light.state == 'GREEN' and not l2_queue.is_empty():
                 vehicle = l2_queue.dequeue()
-                if vehicle.x != 0 or vehicle.y != 0:
-                    if random.random() < 0.5:
-                        next_road = self.straight[road]
-                    else:
-                        next_road = self.right_turn[road]
-                        vehicle.turning_right = True
-                    vehicle.original_road = vehicle.road
-                    vehicle.original_lane = vehicle.lane
-                    vehicle.road = next_road
-                    vehicle.lane = 1
-                    vehicle.is_moving = True
-                    self.moving_vehicles.append(vehicle)
+                if random.random() < 0.5:
+                    next_road = self.straight[road]
                 else:
-                    l2_queue.enqueue(vehicle)
+                    next_road = self.right_turn[road]
+                    vehicle.turning_right = True
+                vehicle.original_road = vehicle.road
+                vehicle.original_lane = vehicle.lane
+                vehicle.road = next_road
+                vehicle.lane = 1
+                vehicle.is_moving = True
+                self.moving_vehicles.append(vehicle)
 
     def process_l1_lanes(self):
         for road in ['A', 'B', 'C', 'D']:
@@ -236,6 +247,26 @@ class TrafficGUI:
 
         for vehicle in self.vehicle_processor.moving_vehicles:
             if vehicle.is_moving:
+
+                if vehicle.entering:
+                    queue = self.queue_dict[vehicle.road][vehicle.lane]
+                    queue_size = queue.size()
+                    target_x, target_y = self.get_queue_position(vehicle.road, vehicle.lane, queue_size)
+                    dx = target_x - vehicle.x
+                    dy = target_y - vehicle.y
+                    distance = math.sqrt(dx * dx + dy * dy)
+
+                    if distance < vehicle.move_speed:
+                        vehicle.x = target_x
+                        vehicle.y = target_y
+                        vehicle.entering = False
+                        vehicle.is_moving = False
+                        self.queue_dict[vehicle.road][vehicle.lane].enqueue(vehicle)
+                        completed.append(vehicle)
+                    else:
+                        vehicle.x += (dx / distance) * vehicle.move_speed
+                        vehicle.y += (dy / distance) * vehicle.move_speed
+                    continue
 
                 if vehicle.lane == 1 and vehicle.exiting:
                     if vehicle.road == 'A':
@@ -344,15 +375,12 @@ class TrafficGUI:
         self.clock.tick(FPS)
     
     def draw_roads(self):
-        # Vertical road
         pygame.draw.rect(self.screen, GRAY, 
                         (self.center_x - self.road_width//2, 0, self.road_width, WINDOW_HEIGHT))
         
-        # Horizontal road
         pygame.draw.rect(self.screen, GRAY, 
                         (0, self.center_y - self.road_width//2, WINDOW_WIDTH, self.road_width))
         
-        # Lane dividers
         for i in range(1, 3):
             x = self.center_x - self.road_width//2 + i * self.lane_width
             for y in range(0, WINDOW_HEIGHT, 20):
@@ -363,7 +391,6 @@ class TrafficGUI:
             for x in range(0, WINDOW_WIDTH, 20):
                 pygame.draw.line(self.screen, YELLOW, (x, y), (x+10, y), 2)
         
-        # Center junction
         pygame.draw.rect(self.screen, (150, 150, 150),
                         (self.center_x - self.road_width//2, self.center_y - self.road_width//2,
                          self.road_width, self.road_width))
@@ -386,7 +413,6 @@ class TrafficGUI:
         vehicle_width = 12
         vehicle_height = 20
         
-        # Draw vehicles in queues
         for road in ['A', 'B', 'C', 'D']:
             for lane in [1, 2, 3]:
                 queue = self.queue_dict[road][lane]
@@ -404,10 +430,8 @@ class TrafficGUI:
                 for i, vehicle in enumerate(vehicles[:10]):
                     color = BLUE if lane == 2 else (ORANGE if lane == 3 else GREEN)
                     
-                    # Update vehicle position
                     vehicle.x, vehicle.y = self.get_queue_position(road, lane, i)
                     
-                    # Draw vehicle
                     if road in ['A', 'C']:
                         rect = pygame.Rect(vehicle.x - vehicle_width//2, vehicle.y - vehicle_height//2,
                                          vehicle_width, vehicle_height)
@@ -418,12 +442,15 @@ class TrafficGUI:
                     pygame.draw.rect(self.screen, color, rect)
                     pygame.draw.rect(self.screen, WHITE, rect, 2)
         
-        # Draw moving vehicles
         for vehicle in self.vehicle_processor.moving_vehicles:
             color = BLUE if vehicle.original_lane == 2 else (ORANGE if vehicle.original_lane == 3 else GREEN)
             
-            # Determine orientation based on original road
-            if vehicle.original_road in ['A', 'C']:
+            if vehicle.exiting or ((vehicle.turning_left or vehicle.turning_right) and vehicle.at_intersection):
+                current_road = vehicle.road
+            else:
+                current_road = vehicle.original_road
+            
+            if current_road in ['A', 'C']:
                 rect = pygame.Rect(vehicle.x - vehicle_width//2, vehicle.y - vehicle_height//2,
                                  vehicle_width, vehicle_height)
             else:
@@ -446,7 +473,6 @@ class TrafficGUI:
             text_rect = text.get_rect(center=pos)
             self.screen.blit(text, text_rect)
         
-        # Queue counts
         y_offset = 10
         for road in ['A', 'B', 'C', 'D']:
             l1 = self.queue_dict[road][1].size()
@@ -476,9 +502,9 @@ class TrafficSimulator:
         self.light_controller = TrafficLightController(self.traffic_lights)
         self.vehicle_processor = VehicleProcessorThread(self.queue_dict, self.traffic_lights)
         self.vehicle_processor.start()
-        self.file_reader = FileReaderThread('vehicle.data', self.queue_dict)
-        self.file_reader.start()
         self.gui = TrafficGUI(self.queue_dict, self.traffic_lights, self.vehicle_processor)
+        self.file_reader = FileReaderThread('vehicle.data', self.queue_dict, self.vehicle_processor, self.gui)
+        self.file_reader.start()
         self.last_update = time.time()
 
     def run(self):
@@ -488,7 +514,6 @@ class TrafficSimulator:
                 if event.type == pygame.QUIT:
                     running = False
             
-            # Update traffic lights every second
             current_time = time.time()
             if current_time - self.last_update >= 1:
                 self.light_controller.update()
