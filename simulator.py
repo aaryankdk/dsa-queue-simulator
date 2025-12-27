@@ -1,14 +1,16 @@
 # Simulator: Main Program for Traffic Simulation
 
 import threading
-from queue import Queue
+from custom_queue import Queue
 import os
 import time
+import random
 
 
 GREEN_LIGHT = 10
 RED_LIGHT = 10
-
+PRIO_CON = 10
+NORM_CON = 5
 
 class Vehicle:
     def __init__(self, vehicle_id, road, lane):
@@ -18,10 +20,10 @@ class Vehicle:
 
 
 class FileReaderThread(threading.Thread): # Thread to read vehicle.data
-    def __init__(self, filename, queue):
+    def __init__(self, filename, queue_dict):
         super().__init__() 
         self.filename = "vehicle.data"
-        self.queue = queue
+        self.queue_dict = queue_dict
         self.daemon = True # Kills thread when main program ends
         self.running = True
         self.vehicle_id = 0
@@ -46,8 +48,8 @@ class FileReaderThread(threading.Thread): # Thread to read vehicle.data
                             road=road_lane[0]
                             lane=int(road_lane[2])
                             vehicle=Vehicle(vehicle_id, road, lane)
-                            if road in self.queue and lane in self.queue[road]:
-                                self.queue[road][lane].enqueue(vehicle)
+                            if road in self.queue_dict and lane in self.queue_dict[road]:
+                                self.queue_dict[road][lane].enqueue(vehicle)
                                 self.vehicle_id += 1
                                 print(f"[FileReader] Vehicle Added: ID={vehicle_id}, Road={road}, Lane={lane}")
                         except(ValueError, IndexError) as e:
@@ -97,9 +99,78 @@ class TrafficLightController:
             self.traffic_lights[self.green_light].green()
 
 
+class VehicleProcessorThread(threading.Thread):
+    def __init__(self, queue_dict, traffic_lights):
+        super().__init__()
+        self.queue_dict = queue_dict
+        self.traffic_lights = traffic_lights
+        self.daemon = True
+        self.running = True
+        
+        self.right_turn = {'A': 'D', 'B': 'A', 'C': 'B', 'D': 'C'}
+        self.left_turn = {'A': 'B', 'B': 'C', 'C': 'D', 'D': 'A'}
+        self.straight = {'A': 'C', 'B': 'D', 'C': 'A', 'D': 'B'}
+    
+    def run(self):
+        while self.running:
+            time.sleep(1)
+            self.process_l3_lanes()
+            self.process_l2_lanes()
+            self.process_l1_lanes()
+    
+    def stop(self):
+        self.running = False
+    
+    def process_l3_lanes(self):
+        for road in ['A', 'B', 'C', 'D']:
+            l3_queue = self.queue_dict[road][3]
+            vehicles_to_requeue = []
+            while not l3_queue.is_empty():
+                vehicle = l3_queue.dequeue()
+                if not hasattr(vehicle, 'step'):
+                    vehicle.step = 0
+                vehicle.step += 1
+                if vehicle.step >= 10:
+                    next_road = self.left_turn[road]
+                    vehicle.road = next_road
+                    vehicle.lane = 1
+                    vehicle.step = 0
+                    self.queue_dict[next_road][1].enqueue(vehicle)
+                    print(f"[Processor] Vehicle {vehicle.vehicle_id}: {road}L3 -> {next_road}L1 (LEFT TURN)")
+                else:
+                    vehicles_to_requeue.append(vehicle)
+            
+            for vehicle in vehicles_to_requeue:
+                l3_queue.enqueue(vehicle)
+    
+    def process_l2_lanes(self):
+        for road in ['A', 'B', 'C', 'D']:
+            light = self.traffic_lights[road]
+            l2_queue = self.queue_dict[road][2]
+            if light.state == 'GREEN' and not l2_queue.is_empty():
+                vehicle = l2_queue.dequeue()
+                if random.random() < 0.5:
+                    next_road = self.straight[road]
+                    direction = "STRAIGHT"
+                else:
+                    next_road = self.right_turn[road]
+                    direction = "RIGHT"
+                vehicle.road = next_road
+                vehicle.lane = 1
+                self.queue_dict[next_road][1].enqueue(vehicle)
+                print(f"[Processor] Vehicle {vehicle.vehicle_id}: {road}L2 -> {next_road}L1 ({direction})")
+    
+    def process_l1_lanes(self):
+        for road in ['A', 'B', 'C', 'D']:
+            l1_queue = self.queue_dict[road][1]        
+            if not l1_queue.is_empty():
+                vehicle = l1_queue.dequeue()
+                print(f"[Processor] Vehicle {vehicle.vehicle_id}: {road}L1 -> EXITED SYSTEM")
+
+
 class TrafficSimulator: # Main logic for traffic simulation
     def __init__(self):
-        self.queue = {
+        self.queue_dict = {
             'A': {1: Queue(), 2: Queue(), 3: Queue()},
             'B': {1: Queue(), 2: Queue(), 3: Queue()},
             'C': {1: Queue(), 2: Queue(), 3: Queue()},
@@ -114,14 +185,16 @@ class TrafficSimulator: # Main logic for traffic simulation
         }
 
         self.light_controller = TrafficLightController(self.traffic_lights)
-        self.file_reader = FileReaderThread('vehicle.data', self.queue)
+        self.file_reader = FileReaderThread('vehicle.data', self.queue_dict)
         self.file_reader.start()
+        self.vehicle_processor = VehicleProcessorThread(self.queue_dict, self.traffic_lights)
+        self.vehicle_processor.start()
 
     def print_status(self):
         for road in ['A', 'B', 'C', 'D']:
-            l1 = self.queue[road][1].size()
-            l2 = self.queue[road][2].size()
-            l3 = self.queue[road][3].size()
+            l1 = self.queue_dict[road][1].size()
+            l2 = self.queue_dict[road][2].size()
+            l3 = self.queue_dict[road][3].size()
             total = l1 + l2 + l3
             if total > 0:
                 print(f"Road {road}: L1={l1} L2={l2} L3={l3} (Total: {total})")
