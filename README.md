@@ -4,12 +4,18 @@ A multi-threaded traffic junction simulator with priority queue management and r
 
 ---
 
-## Authors
+## Author
 
 - **Name**: Aaryan Khadka
 - **Roll Number**: 38
 - **Class**: CS-A, II/I
 - **Subject**: COMP202
+
+---
+
+## GIF/Video
+
+![Visual Demonstration](dsa-queue-simulator.gif)
 
 ---
 
@@ -152,11 +158,3 @@ This starts the traffic simulator with visualization.
 2. **Pygame Documentation**
    - Official Site: https://www.pygame.org/docs/
    - Used for: Window management, drawing primitives, event handling, clock/FPS control
-
----
-
-## Acknowledgments
-
-- Course instructors for project guidance
-- Pygame community for excellent documentation
-- Python threading module for concurrent execution support
