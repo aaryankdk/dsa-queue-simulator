@@ -11,8 +11,8 @@ GREEN_LIGHT = 10
 RED_LIGHT = 10
 
 
-WINDOW_WIDTH = 1200
-WINDOW_HEIGHT = 1200
+WINDOW_WIDTH = 800
+WINDOW_HEIGHT = 800
 FPS = 60
 
 
@@ -44,6 +44,9 @@ class Vehicle:
         self.turning_right = False
         self.at_intersection = False
         self.entering = False
+        self.turning_point_x = 0
+        self.turning_point_y = 0
+        self.reached_turning_point = False
 
 
 class FileReaderThread(threading.Thread):
@@ -262,6 +265,37 @@ class TrafficGUI:
 
         return x, y
 
+    def update_queued_vehicles(self):
+        for road in ['A', 'B', 'C', 'D']:
+            for lane in [1, 2, 3]:
+                queue = self.queue_dict[road][lane]
+                
+                vehicles = []
+                temp_list = []
+                while not queue.is_empty():
+                    v = queue.dequeue()
+                    vehicles.append(v)
+                    temp_list.append(v)
+                
+                for v in temp_list:
+                    queue.enqueue(v)
+                
+                for i, vehicle in enumerate(vehicles[:10]):
+                    target_x, target_y = self.get_queue_position(road, lane, i)
+                    
+                    dx = target_x - vehicle.x
+                    dy = target_y - vehicle.y
+                    distance = math.sqrt(dx * dx + dy * dy)
+                    
+                    if distance > 1:
+                        queue_speed = 4
+                        if distance < queue_speed:
+                            vehicle.x = target_x
+                            vehicle.y = target_y
+                        else:
+                            vehicle.x += (dx / distance) * queue_speed
+                            vehicle.y += (dy / distance) * queue_speed
+
     def update_moving_vehicles(self):
         completed = []
         exited = []
@@ -309,57 +343,122 @@ class TrafficGUI:
                     continue
 
                 if vehicle.turning_left and not vehicle.at_intersection:
-                    if vehicle.original_road == 'A':
-                        vehicle.target_x = self.center_x - self.road_width // 2 + (3 - 1) * self.lane_width + self.lane_width // 2
-                        vehicle.target_y = self.center_y - self.road_width // 2 + 10
-                    elif vehicle.original_road == 'C':
-                        vehicle.target_x = self.center_x - self.road_width // 2 + (1 - 1) * self.lane_width + self.lane_width // 2
-                        vehicle.target_y = self.center_y + self.road_width // 2 - 10
-                    elif vehicle.original_road == 'B':
-                        vehicle.target_x = self.center_x + self.road_width // 2 - 10
-                        vehicle.target_y = self.center_y - self.road_width // 2 + (3 - 1) * self.lane_width + self.lane_width // 2
-                    elif vehicle.original_road == 'D':
-                        vehicle.target_x = self.center_x - self.road_width // 2 + 10
-                        vehicle.target_y = self.center_y - self.road_width // 2 + (1 - 1) * self.lane_width + self.lane_width // 2
-                    
-                    dx = vehicle.target_x - vehicle.x
-                    dy = vehicle.target_y - vehicle.y
-                    distance = math.sqrt(dx * dx + dy * dy)
-                    
-                    if distance < vehicle.move_speed:
-                        vehicle.x = vehicle.target_x
-                        vehicle.y = vehicle.target_y
-                        vehicle.at_intersection = True
+                    if not vehicle.reached_turning_point:
+                        dest_lane_offset = (vehicle.lane - 1) * self.lane_width + self.lane_width // 2
+                        
+                        if vehicle.original_road == 'A':
+                            vehicle.turning_point_x = vehicle.x
+                            vehicle.turning_point_y = self.center_y - self.road_width // 2 + dest_lane_offset
+                        elif vehicle.original_road == 'C':
+                            vehicle.turning_point_x = vehicle.x
+                            vehicle.turning_point_y = self.center_y + self.road_width // 2 - dest_lane_offset
+                        elif vehicle.original_road == 'B':
+                            vehicle.turning_point_x = self.center_x + self.road_width // 2 - dest_lane_offset
+                            vehicle.turning_point_y = vehicle.y
+                        elif vehicle.original_road == 'D':
+                            vehicle.turning_point_x = self.center_x - self.road_width // 2 + dest_lane_offset
+                            vehicle.turning_point_y = vehicle.y
+                        
+                        dx = vehicle.turning_point_x - vehicle.x
+                        dy = vehicle.turning_point_y - vehicle.y
+                        distance = math.sqrt(dx * dx + dy * dy)
+                        
+                        if distance < vehicle.move_speed:
+                            vehicle.x = vehicle.turning_point_x
+                            vehicle.y = vehicle.turning_point_y
+                            vehicle.reached_turning_point = True
+                        else:
+                            if vehicle.original_road in ['A', 'C']:
+                                vehicle.y += (dy / abs(dy)) * vehicle.move_speed if dy != 0 else 0
+                            else:
+                                vehicle.x += (dx / abs(dx)) * vehicle.move_speed if dx != 0 else 0
                     else:
-                        vehicle.x += (dx / distance) * vehicle.move_speed
-                        vehicle.y += (dy / distance) * vehicle.move_speed
+                        target_x, target_y = self.get_queue_position(vehicle.road, vehicle.lane, 0)
+                        dx = target_x - vehicle.x
+                        dy = target_y - vehicle.y
+                        distance = math.sqrt(dx * dx + dy * dy)
+                        
+                        if distance < vehicle.move_speed:
+                            vehicle.x = target_x
+                            vehicle.y = target_y
+                            vehicle.at_intersection = True
+                            vehicle.is_moving = False
+                            if vehicle.lane == 1:
+                                vehicle.is_moving = True
+                                vehicle.exiting = True
+                            else:
+                                self.queue_dict[vehicle.road][vehicle.lane].enqueue(vehicle)
+                                completed.append(vehicle)
+                        else:
+                            if vehicle.road in ['A', 'C']:
+                                vehicle.y += (dy / abs(dy)) * vehicle.move_speed if dy != 0 else 0
+                            else:
+                                vehicle.x += (dx / abs(dx)) * vehicle.move_speed if dx != 0 else 0
                     continue
 
                 if vehicle.turning_right and not vehicle.at_intersection:
-                    if vehicle.original_road == 'A':
-                        vehicle.target_x = self.center_x - self.road_width // 2 + (1 - 1) * self.lane_width + self.lane_width // 2
-                        vehicle.target_y = self.center_y - self.road_width // 2 + 10
-                    elif vehicle.original_road == 'C':
-                        vehicle.target_x = self.center_x - self.road_width // 2 + (3 - 1) * self.lane_width + self.lane_width // 2
-                        vehicle.target_y = self.center_y + self.road_width // 2 - 10
-                    elif vehicle.original_road == 'B':
-                        vehicle.target_x = self.center_x + self.road_width // 2 - 10
-                        vehicle.target_y = self.center_y - self.road_width // 2 + (1 - 1) * self.lane_width + self.lane_width // 2
-                    elif vehicle.original_road == 'D':
-                        vehicle.target_x = self.center_x - self.road_width // 2 + 10
-                        vehicle.target_y = self.center_y - self.road_width // 2 + (3 - 1) * self.lane_width + self.lane_width // 2
-                    
-                    dx = vehicle.target_x - vehicle.x
-                    dy = vehicle.target_y - vehicle.y
-                    distance = math.sqrt(dx * dx + dy * dy)
-                    
-                    if distance < vehicle.move_speed:
-                        vehicle.x = vehicle.target_x
-                        vehicle.y = vehicle.target_y
-                        vehicle.at_intersection = True
+                    if not vehicle.reached_turning_point:
+                        if vehicle.road == 'A':
+                            dest_lane_offset = (3 - vehicle.lane) * self.lane_width + self.lane_width // 2
+                        elif vehicle.road == 'C':
+                            dest_lane_offset = (3 - vehicle.lane) * self.lane_width + self.lane_width // 2
+                        elif vehicle.road == 'B':
+                            dest_lane_offset = (3 - vehicle.lane) * self.lane_width + self.lane_width // 2
+                        elif vehicle.road == 'D':
+                            dest_lane_offset = (3 - vehicle.lane) * self.lane_width + self.lane_width // 2
+                        
+                        if vehicle.original_road == 'A':
+                            vehicle.turning_point_x = vehicle.x
+                            if vehicle.road == 'D':
+                                vehicle.turning_point_y = self.center_y - self.road_width // 2 + dest_lane_offset
+                        elif vehicle.original_road == 'C':
+                            vehicle.turning_point_x = vehicle.x
+                            if vehicle.road == 'B':
+                                vehicle.turning_point_y = self.center_y + self.road_width // 2 - dest_lane_offset
+                        elif vehicle.original_road == 'B':
+                            vehicle.turning_point_y = vehicle.y
+                            if vehicle.road == 'A':
+                                vehicle.turning_point_x = self.center_x + self.road_width // 2 - dest_lane_offset
+                        elif vehicle.original_road == 'D':
+                            vehicle.turning_point_y = vehicle.y
+                            if vehicle.road == 'C':
+                                vehicle.turning_point_x = self.center_x - self.road_width // 2 + dest_lane_offset
+                        
+                        dx = vehicle.turning_point_x - vehicle.x
+                        dy = vehicle.turning_point_y - vehicle.y
+                        distance = math.sqrt(dx * dx + dy * dy)
+                        
+                        if distance < vehicle.move_speed:
+                            vehicle.x = vehicle.turning_point_x
+                            vehicle.y = vehicle.turning_point_y
+                            vehicle.reached_turning_point = True
+                        else:
+                            if vehicle.original_road in ['A', 'C']:
+                                vehicle.y += (dy / abs(dy)) * vehicle.move_speed if dy != 0 else 0
+                            else:
+                                vehicle.x += (dx / abs(dx)) * vehicle.move_speed if dx != 0 else 0
                     else:
-                        vehicle.x += (dx / distance) * vehicle.move_speed
-                        vehicle.y += (dy / distance) * vehicle.move_speed
+                        target_x, target_y = self.get_queue_position(vehicle.road, vehicle.lane, 0)
+                        dx = target_x - vehicle.x
+                        dy = target_y - vehicle.y
+                        distance = math.sqrt(dx * dx + dy * dy)
+                        
+                        if distance < vehicle.move_speed:
+                            vehicle.x = target_x
+                            vehicle.y = target_y
+                            vehicle.at_intersection = True
+                            vehicle.is_moving = False
+                            if vehicle.lane == 1:
+                                vehicle.is_moving = True
+                                vehicle.exiting = True
+                            else:
+                                self.queue_dict[vehicle.road][vehicle.lane].enqueue(vehicle)
+                                completed.append(vehicle)
+                        else:
+                            if vehicle.road in ['A', 'C']:
+                                vehicle.y += (dy / abs(dy)) * vehicle.move_speed if dy != 0 else 0
+                            else:
+                                vehicle.x += (dx / abs(dx)) * vehicle.move_speed if dx != 0 else 0
                     continue
 
                 target_x, target_y = self.get_queue_position(vehicle.road, vehicle.lane, 0)
@@ -388,6 +487,7 @@ class TrafficGUI:
     def draw(self):
         self.screen.fill(BACKGROUND)
         self.update_moving_vehicles()
+        self.update_queued_vehicles()
         self.draw_roads()
         self.draw_traffic_lights()
         self.draw_vehicles()
@@ -481,14 +581,15 @@ class TrafficGUI:
                 
                 for i, vehicle in enumerate(vehicles[:10]):
                     color = BLUE if lane == 2 else (ORANGE if lane == 3 else GREEN)
-                    vehicle.x, vehicle.y = self.get_queue_position(road, lane, i)
                     vertical = road in ['A', 'C']
                     self.draw_car(vehicle.x, vehicle.y, color, vertical)
         
         for vehicle in self.vehicle_processor.moving_vehicles:
             color = BLUE if vehicle.original_lane == 2 else (ORANGE if vehicle.original_lane == 3 else GREEN)
             
-            if vehicle.exiting or ((vehicle.turning_left or vehicle.turning_right) and vehicle.at_intersection):
+            if vehicle.exiting:
+                current_road = vehicle.road
+            elif (vehicle.turning_left or vehicle.turning_right) and vehicle.reached_turning_point:
                 current_road = vehicle.road
             else:
                 current_road = vehicle.original_road
@@ -498,25 +599,18 @@ class TrafficGUI:
     
     def draw_labels(self):
         labels = {
-            'A': (self.center_x, 40),
-            'B': (WINDOW_WIDTH - 70, self.center_y),
-            'C': (self.center_x, WINDOW_HEIGHT - 40),
-            'D': (70, self.center_y)
+            'A': (self.center_x - 120, self.center_y - 120 - 50),
+            'B': (self.center_x + 120, self.center_y - 120 - 50),
+            'C': (self.center_x + 120, self.center_y + 120 + 50),
+            'D': (self.center_x - 120, self.center_y + 120 + 50)
         }
         
         for road, pos in labels.items():
-            text = self.font.render(f"Road {road}", True, WHITE)
+            text = self.font.render(f"{road}", True, WHITE)
             text_rect = text.get_rect(center=pos)
             self.screen.blit(text, text_rect)
         
         y_offset = 10
-        for road in ['A', 'B', 'C', 'D']:
-            l1 = self.queue_dict[road][1].size()
-            l2 = self.queue_dict[road][2].size()
-            l3 = self.queue_dict[road][3].size()
-            text = self.font.render(f"{road}: L1={l1} L2={l2} L3={l3}", True, WHITE)
-            self.screen.blit(text, (10, y_offset))
-            y_offset += 40
         
         al2_queue = self.queue_dict['A'][2]
         if hasattr(al2_queue, 'is_priority') and al2_queue.is_priority:
