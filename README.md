@@ -62,7 +62,7 @@ A multi-threaded traffic junction simulator implementing custom Queue and Priori
 ### Three-Lane System
 
 | Lane | Behavior | Traffic Light Required |
-|------|--------|----------|------------------------|
+|------|----------|------------------------|
 | L1   | Exit lane (removes vehicle) | No |
 | L2   | 50% straight, 50% right turn | Yes (must wait for green) |
 | L3   | Always turns left | No (free flow) |
