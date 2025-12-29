@@ -15,7 +15,7 @@ A multi-threaded traffic junction simulator implementing custom Queue and Priori
 
 ## GIF/Video
 
-![Visual Demonstration](dsa-queue-simulator.gif)
+
 
 ---
 
