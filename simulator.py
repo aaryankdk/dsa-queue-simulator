@@ -11,8 +11,8 @@ GREEN_LIGHT = 10
 RED_LIGHT = 10
 
 
-WINDOW_WIDTH = 800
-WINDOW_HEIGHT = 800
+WINDOW_WIDTH = 1200
+WINDOW_HEIGHT = 1200
 FPS = 60
 
 
@@ -36,7 +36,7 @@ class Vehicle:
         self.target_x = 0
         self.target_y = 0
         self.is_moving = False
-        self.move_speed = 3
+        self.move_speed = 6
         self.original_road = road
         self.original_lane = lane
         self.exiting = False
@@ -236,28 +236,28 @@ class TrafficGUI:
         self.queue_dict = queue_dict
         self.traffic_lights = traffic_lights
         self.vehicle_processor = vehicle_processor
-        self.font = pygame.font.Font(None, 24)
+        self.font = pygame.font.Font(None, 36)
 
         self.center_x = WINDOW_WIDTH // 2
         self.center_y = WINDOW_HEIGHT // 2
-        self.road_width = 80
+        self.road_width = 160
         self.lane_width = self.road_width // 3
 
     def get_queue_position(self, road, lane, index):
-        spacing = 30
+        spacing = 60
         lane_offset = (lane - 1) * self.lane_width + self.lane_width // 2
 
         if road == 'A':
             x = self.center_x - self.road_width // 2 + lane_offset
-            y = self.center_y - self.road_width // 2 - 40 - (index * spacing)
+            y = self.center_y - self.road_width // 2 - 80 - (index * spacing)
         elif road == 'C':
             x = self.center_x - self.road_width // 2 + (3 - lane) * self.lane_width + self.lane_width // 2
-            y = self.center_y + self.road_width // 2 + 40 + (index * spacing)
+            y = self.center_y + self.road_width // 2 + 80 + (index * spacing)
         elif road == 'B':
-            x = self.center_x + self.road_width // 2 + 40 + (index * spacing)
+            x = self.center_x + self.road_width // 2 + 80 + (index * spacing)
             y = self.center_y - self.road_width // 2 + lane_offset
         else:
-            x = self.center_x - self.road_width // 2 - 40 - (index * spacing)
+            x = self.center_x - self.road_width // 2 - 80 - (index * spacing)
             y = self.center_y - self.road_width // 2 + (3 - lane) * self.lane_width + self.lane_width // 2
 
         return x, y
@@ -311,15 +311,15 @@ class TrafficGUI:
                 if vehicle.turning_left and not vehicle.at_intersection:
                     if vehicle.original_road == 'A':
                         vehicle.target_x = self.center_x - self.road_width // 2 + (3 - 1) * self.lane_width + self.lane_width // 2
-                        vehicle.target_y = self.center_y - self.road_width // 2 + 5
+                        vehicle.target_y = self.center_y - self.road_width // 2 + 10
                     elif vehicle.original_road == 'C':
                         vehicle.target_x = self.center_x - self.road_width // 2 + (1 - 1) * self.lane_width + self.lane_width // 2
-                        vehicle.target_y = self.center_y + self.road_width // 2 - 5
+                        vehicle.target_y = self.center_y + self.road_width // 2 - 10
                     elif vehicle.original_road == 'B':
-                        vehicle.target_x = self.center_x + self.road_width // 2 - 5
+                        vehicle.target_x = self.center_x + self.road_width // 2 - 10
                         vehicle.target_y = self.center_y - self.road_width // 2 + (3 - 1) * self.lane_width + self.lane_width // 2
                     elif vehicle.original_road == 'D':
-                        vehicle.target_x = self.center_x - self.road_width // 2 + 5
+                        vehicle.target_x = self.center_x - self.road_width // 2 + 10
                         vehicle.target_y = self.center_y - self.road_width // 2 + (1 - 1) * self.lane_width + self.lane_width // 2
                     
                     dx = vehicle.target_x - vehicle.x
@@ -338,15 +338,15 @@ class TrafficGUI:
                 if vehicle.turning_right and not vehicle.at_intersection:
                     if vehicle.original_road == 'A':
                         vehicle.target_x = self.center_x - self.road_width // 2 + (1 - 1) * self.lane_width + self.lane_width // 2
-                        vehicle.target_y = self.center_y - self.road_width // 2 + 5
+                        vehicle.target_y = self.center_y - self.road_width // 2 + 10
                     elif vehicle.original_road == 'C':
                         vehicle.target_x = self.center_x - self.road_width // 2 + (3 - 1) * self.lane_width + self.lane_width // 2
-                        vehicle.target_y = self.center_y + self.road_width // 2 - 5
+                        vehicle.target_y = self.center_y + self.road_width // 2 - 10
                     elif vehicle.original_road == 'B':
-                        vehicle.target_x = self.center_x + self.road_width // 2 - 5
+                        vehicle.target_x = self.center_x + self.road_width // 2 - 10
                         vehicle.target_y = self.center_y - self.road_width // 2 + (1 - 1) * self.lane_width + self.lane_width // 2
                     elif vehicle.original_road == 'D':
-                        vehicle.target_x = self.center_x - self.road_width // 2 + 5
+                        vehicle.target_x = self.center_x - self.road_width // 2 + 10
                         vehicle.target_y = self.center_y - self.road_width // 2 + (3 - 1) * self.lane_width + self.lane_width // 2
                     
                     dx = vehicle.target_x - vehicle.x
@@ -418,22 +418,53 @@ class TrafficGUI:
     
     def draw_traffic_lights(self):
         positions = {
-            'A': (self.center_x - 60, self.center_y - 60),
-            'B': (self.center_x + 60, self.center_y - 60),
-            'C': (self.center_x + 60, self.center_y + 60),
-            'D': (self.center_x - 60, self.center_y + 60)
+            'A': (self.center_x - 120, self.center_y - 120),
+            'B': (self.center_x + 120, self.center_y - 120),
+            'C': (self.center_x + 120, self.center_y + 120),
+            'D': (self.center_x - 120, self.center_y + 120)
         }
         
         for road, pos in positions.items():
             light = self.traffic_lights[road]
             color = GREEN if light.state == 'GREEN' else RED
-            pygame.draw.circle(self.screen, color, pos, 15)
-            pygame.draw.circle(self.screen, WHITE, pos, 15, 2)
+            pygame.draw.circle(self.screen, color, pos, 30)
+            pygame.draw.circle(self.screen, WHITE, pos, 30, 3)
     
+    def draw_car(self, x, y, color, vertical):
+        if vertical:
+            body_width = 24
+            body_height = 40
+            body = pygame.Rect(x - body_width//2, y - body_height//2, body_width, body_height)
+            pygame.draw.rect(self.screen, color, body)
+            pygame.draw.rect(self.screen, WHITE, body, 2)
+            cabin_height = 12
+            cabin = pygame.Rect(x - body_width//2 + 4, y - cabin_height//2, body_width - 8, cabin_height)
+            cabin_color = (max(0, color[0] - 40), max(0, color[1] - 40), max(0, color[2] - 40))
+            pygame.draw.rect(self.screen, cabin_color, cabin)
+            wheel_width = 6
+            wheel_height = 8
+            pygame.draw.rect(self.screen, (40, 40, 40), (x - body_width//2 - 2, y - body_height//2 + 6, wheel_width, wheel_height))
+            pygame.draw.rect(self.screen, (40, 40, 40), (x + body_width//2 - 4, y - body_height//2 + 6, wheel_width, wheel_height))
+            pygame.draw.rect(self.screen, (40, 40, 40), (x - body_width//2 - 2, y + body_height//2 - 14, wheel_width, wheel_height))
+            pygame.draw.rect(self.screen, (40, 40, 40), (x + body_width//2 - 4, y + body_height//2 - 14, wheel_width, wheel_height))
+        else:
+            body_width = 40
+            body_height = 24
+            body = pygame.Rect(x - body_width//2, y - body_height//2, body_width, body_height)
+            pygame.draw.rect(self.screen, color, body)
+            pygame.draw.rect(self.screen, WHITE, body, 2)
+            cabin_width = 12
+            cabin = pygame.Rect(x - cabin_width//2, y - body_height//2 + 4, cabin_width, body_height - 8)
+            cabin_color = (max(0, color[0] - 40), max(0, color[1] - 40), max(0, color[2] - 40))
+            pygame.draw.rect(self.screen, cabin_color, cabin)
+            wheel_width = 8
+            wheel_height = 6
+            pygame.draw.rect(self.screen, (40, 40, 40), (x - body_width//2 + 6, y - body_height//2 - 2, wheel_width, wheel_height))
+            pygame.draw.rect(self.screen, (40, 40, 40), (x - body_width//2 + 6, y + body_height//2 - 4, wheel_width, wheel_height))
+            pygame.draw.rect(self.screen, (40, 40, 40), (x + body_width//2 - 14, y - body_height//2 - 2, wheel_width, wheel_height))
+            pygame.draw.rect(self.screen, (40, 40, 40), (x + body_width//2 - 14, y + body_height//2 - 4, wheel_width, wheel_height))
+
     def draw_vehicles(self):
-        vehicle_width = 12
-        vehicle_height = 20
-        
         for road in ['A', 'B', 'C', 'D']:
             for lane in [1, 2, 3]:
                 queue = self.queue_dict[road][lane]
@@ -450,18 +481,9 @@ class TrafficGUI:
                 
                 for i, vehicle in enumerate(vehicles[:10]):
                     color = BLUE if lane == 2 else (ORANGE if lane == 3 else GREEN)
-                    
                     vehicle.x, vehicle.y = self.get_queue_position(road, lane, i)
-                    
-                    if road in ['A', 'C']:
-                        rect = pygame.Rect(vehicle.x - vehicle_width//2, vehicle.y - vehicle_height//2,
-                                         vehicle_width, vehicle_height)
-                    else:
-                        rect = pygame.Rect(vehicle.x - vehicle_height//2, vehicle.y - vehicle_width//2,
-                                         vehicle_height, vehicle_width)
-                    
-                    pygame.draw.rect(self.screen, color, rect)
-                    pygame.draw.rect(self.screen, WHITE, rect, 2)
+                    vertical = road in ['A', 'C']
+                    self.draw_car(vehicle.x, vehicle.y, color, vertical)
         
         for vehicle in self.vehicle_processor.moving_vehicles:
             color = BLUE if vehicle.original_lane == 2 else (ORANGE if vehicle.original_lane == 3 else GREEN)
@@ -471,22 +493,15 @@ class TrafficGUI:
             else:
                 current_road = vehicle.original_road
             
-            if current_road in ['A', 'C']:
-                rect = pygame.Rect(vehicle.x - vehicle_width//2, vehicle.y - vehicle_height//2,
-                                 vehicle_width, vehicle_height)
-            else:
-                rect = pygame.Rect(vehicle.x - vehicle_height//2, vehicle.y - vehicle_width//2,
-                                 vehicle_height, vehicle_width)
-            
-            pygame.draw.rect(self.screen, color, rect)
-            pygame.draw.rect(self.screen, WHITE, rect, 2)
+            vertical = current_road in ['A', 'C']
+            self.draw_car(vehicle.x, vehicle.y, color, vertical)
     
     def draw_labels(self):
         labels = {
-            'A': (self.center_x, 30),
-            'B': (WINDOW_WIDTH - 50, self.center_y),
-            'C': (self.center_x, WINDOW_HEIGHT - 30),
-            'D': (50, self.center_y)
+            'A': (self.center_x, 40),
+            'B': (WINDOW_WIDTH - 70, self.center_y),
+            'C': (self.center_x, WINDOW_HEIGHT - 40),
+            'D': (70, self.center_y)
         }
         
         for road, pos in labels.items():
@@ -501,12 +516,12 @@ class TrafficGUI:
             l3 = self.queue_dict[road][3].size()
             text = self.font.render(f"{road}: L1={l1} L2={l2} L3={l3}", True, WHITE)
             self.screen.blit(text, (10, y_offset))
-            y_offset += 25
+            y_offset += 40
         
         al2_queue = self.queue_dict['A'][2]
         if hasattr(al2_queue, 'is_priority') and al2_queue.is_priority:
             priority_text = self.font.render("PRIORITY MODE: AL2 ACTIVE", True, RED)
-            self.screen.blit(priority_text, (WINDOW_WIDTH // 2 - 120, 60))
+            self.screen.blit(priority_text, (WINDOW_WIDTH // 2 - 160, 80))
 
 
 class TrafficSimulator:
