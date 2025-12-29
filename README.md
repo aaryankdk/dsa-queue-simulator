@@ -61,11 +61,11 @@ A multi-threaded traffic junction simulator implementing custom Queue and Priori
 
 ### Three-Lane System
 
-| Lane | Color  | Behavior | Traffic Light Required |
+| Lane | Behavior | Traffic Light Required |
 |------|--------|----------|------------------------|
-| L1   | Green  | Exit lane (removes vehicle) | No |
-| L2   | Blue   | 50% straight, 50% right turn | Yes (must wait for green) |
-| L3   | Orange | Always turns left | No (free flow) |
+| L1   | Exit lane (removes vehicle) | No |
+| L2   | 50% straight, 50% right turn | Yes (must wait for green) |
+| L3   | Always turns left | No (free flow) |
 
 ### Routing Tables
 
